@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "page-comments-react-client-side-solution",
+    "id": "250b7b88-4c87-4164-b47b-b884a2ca3459",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.20.0"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "page-comments-react description"
+      },
+      "longDescription": {
+        "default": "page-comments-react description"
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "page-comments-react Feature",
+        "description": "The feature that activates elements of the page-comments-react solution.",
+        "id": "44de6ec6-c356-45eb-bb0c-5483c4b3644b",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/page-comments-react.sppkg"
+  }
+}
