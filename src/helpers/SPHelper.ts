@@ -222,39 +222,90 @@ export default class SPHelper {
     );
   }
 
-  /** Toggle a vote for a comment */
-  public async vote(
-    pageUrl: string,
-    comment: IComment,
-    user: IUserInfo
-  ): Promise<void> {
-    const res = await this.list.items
-      .select("Likes", "FieldValuesAsText/Likes")
-      .filter(`PageURL eq '${pageUrl}'`)
-      .expand("FieldValuesAsText")();
+/** Always add a vote (never remove it) */
+/** Always add a vote, never remove it */
+// public async vote(
+//   pageUrl: string,
+//   comment: IComment,
+//   user: IUserInfo
+// ): Promise<void> {
+//   // 1) load the list item storing Likes JSON, INCLUDING its ID
+//   const res = await this.list.items
+//     .select("ID", "Likes", "FieldValuesAsText/Likes")
+//     .filter(`PageURL eq '${pageUrl}'`)
+//     .expand("FieldValuesAsText")();
 
-    const raw = JSON.parse(
-      res[0].FieldValuesAsText.Likes || "[]"
-    ) as Array<{ commentID: string; userVote: { userid: number }[] }>;
+//   if (res.length === 0) {
+//     // no list item yet? you might want to bail or create it here
+//     return;
+//   }
 
-    let entry = raw.find((l) => l.commentID === comment.id);
-    if (!entry && comment.user_has_upvoted) {
-      entry = { commentID: comment.id, userVote: [] };
-      raw.push(entry);
-    }
-    if (entry) {
-      const has = entry.userVote.some((v) => v.userid === user.ID);
-      if (comment.user_has_upvoted && !has) {
-        entry.userVote.push({ userid: user.ID });
-      } else if (!comment.user_has_upvoted && has) {
-        entry.userVote = entry.userVote.filter(
-          (v) => v.userid !== user.ID
-        );
-      }
-    }
+//   const listItemId = res[0].ID;
 
-    await this.list.items
-      .getById(res[0].ID)
-      .update({ Likes: JSON.stringify(raw) });
+//   // 2) parse the existing Likes array
+//   const raw: Array<{ commentID: string; userVote: { userid: number }[] }> =
+//     JSON.parse(res[0].FieldValuesAsText.Likes || "[]");
+
+//   // 3) find or create the entry for this comment
+//   let entry = raw.find((l) => l.commentID === comment.id);
+//   if (!entry) {
+//     entry = { commentID: comment.id, userVote: [] };
+//     raw.push(entry);
+//   }
+
+//   // 4) only add your vote (never remove)
+//   if (!entry.userVote.some((v) => v.userid === user.ID)) {
+//     entry.userVote.push({ userid: user.ID });
+//   }
+
+//   // 5) persist the updated array back to the same item
+//   await this.list.items.getById(listItemId).update({
+//     Likes: JSON.stringify(raw),
+//   });
+// }
+
+public async vote(
+  pageUrl: string,
+  comment: IComment,
+  user: IUserInfo
+): Promise<void> {
+  // 1) fetch the single list item, including its ID
+  const res = await this.list.items
+    .select("ID", "Likes", "FieldValuesAsText/Likes")
+    .filter(`PageURL eq '${pageUrl}'`)
+    .expand("FieldValuesAsText")();
+
+  if (res.length === 0) return;
+  const itemId = res[0].ID;
+
+  // 2) parse the raw Likes array
+  const raw: Array<{ commentID: string; userVote: { userid: number }[] }> =
+    JSON.parse(res[0].FieldValuesAsText.Likes || "[]");
+
+  // 3) find or create this comment's record
+  let entry = raw.find(l => l.commentID === comment.id);
+  if (!entry) {
+    entry = { commentID: comment.id, userVote: [] };
+    raw.push(entry);
   }
+
+  const hasVoted = entry.userVote.some(v => v.userid === user.ID);
+
+  // 4) toggle: add if now upvoted, else remove
+  if (comment.user_has_upvoted && !hasVoted) {
+    entry.userVote.push({ userid: user.ID });
+  } else if (!comment.user_has_upvoted && hasVoted) {
+    entry.userVote = entry.userVote.filter(v => v.userid !== user.ID);
+  }
+
+  // 5) write it back
+  await this.list.items.getById(itemId).update({
+    Likes: JSON.stringify(raw),
+  });
+}
+
+
+
+
+
 }

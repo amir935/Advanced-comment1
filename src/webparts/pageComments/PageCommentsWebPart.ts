@@ -6,7 +6,7 @@ import {
   IPropertyPaneConfiguration,
   PropertyPaneTextField
 } from "@microsoft/sp-webpart-base";
-
+import { SPComponentLoader } from '@microsoft/sp-loader';
 // PnPjs v3 imports:
 import { spfi, SPFx, SPFI } from "@pnp/sp";
 import "@pnp/sp/webs";
@@ -28,7 +28,9 @@ export default class PageCommentsWebPart extends BaseClientSideWebPart<IPageComm
   // 2) Initialize PnPjs and your helper
   protected async onInit(): Promise<void> {
     await super.onInit();
-
+    SPComponentLoader.loadCss(
+      'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css'
+    );
     // create a PnPjs SPFI instance wired to this SPFx context
     this.sp = spfi().using(SPFx(this.context));
 

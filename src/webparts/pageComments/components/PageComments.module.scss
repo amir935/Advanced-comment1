@@ -13,6 +13,7 @@ $text-lighter: #999;
   border-radius: 4px;
   padding: 16px;
   margin: 16px 0;
+
   .inputBar {
     display: flex;
     align-items: center;
@@ -73,6 +74,7 @@ $text-lighter: #999;
         color: $brand-secondary;
       }
     }
+
     .active {
       color: $brand-primary;
       border-bottom: 3px solid $brand-primary;
@@ -90,6 +92,7 @@ $text-lighter: #999;
   .comment {
     padding: 12px 0;
     border-bottom: 1px solid #eee;
+    
 
     .commentHeader {
       display: flex;
@@ -114,6 +117,19 @@ $text-lighter: #999;
           margin-right: 6px;
         }
 
+        /* ─── New “↪ ParentName” style ─── */
+        .replyTo {
+          margin-left: 0.5rem;
+          font-size: 0.9em;
+          color: #666;
+        }
+
+        .mentionInline {
+          font-weight: bold;
+          color: $brand-secondary;   // or whatever you like
+          margin-right: 0.25rem;
+        }
+
         .newBadge {
           background: $brand-primary;
           color: #fff;
@@ -133,13 +149,24 @@ $text-lighter: #999;
       @include ms-font-m;
       color: #333;
       margin-bottom: 6px;
+      margin-left: 40px;
     }
 
     .actions {
       display: flex;
       align-items: center;
+      
       @include ms-font-s;
       color: $brand-secondary;
+      margin-left: 35px;
+
+      
+      .action2{
+        margin-left: auto;    // ← push to the right edge of .actions
+        display: flex;
+        gap: 8px;             // space between Delete & Save
+        padding-top: 8px;
+      }
 
       button {
         background: none;
@@ -152,13 +179,41 @@ $text-lighter: #999;
         }
       }
     }
-
+    .likeButton {
+      display: inline-flex;
+      align-items: center;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0 6px;
+      @include ms-font-s;
+    
+      i {
+        font-size: 1.1em;  // adjust size as needed
+      }
+    }
+    
+    .voteCount {
+      margin-left: 4px;
+      @include ms-font-s;
+    }
+    
+    // ────────── Threaded replies ──────────
     .replies {
-      margin-left: 40px;
-      padding-left: 12px;
-      border-left: 2px solid #eee;
+      list-style: none;
+      margin-left: 2rem;         // indent replies
+      padding-left: 1rem;
+      border-left: 2px solid #ddd;
       margin-top: 8px;
     }
+    .childReplies {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      border-left: none;
+      margin-top: 8px; // keep vertical spacing if desired
+    }
+
 
     .toggleReplies {
       background: none;
@@ -172,9 +227,45 @@ $text-lighter: #999;
         text-decoration: underline;
       }
     }
+
+    .replyBox {
+      display: flex;
+      align-items: flex-start;
+      margin-top: 8px;
+
+      textarea {
+        flex: 1;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        resize: vertical;
+        @include ms-font-m;
+        margin-right: 8px;
+      }
+
+      button {
+        @include ms-font-s;
+        background: $brand-primary;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 6px 12px;
+        cursor: pointer;
+
+        &:hover {
+          background: darken($brand-primary, 5%);
+        }
+
+        &:disabled {
+          background: lighten($brand-primary, 20%);
+          cursor: default;
+        }
+      }
+    }
   }
 }
 
+// Optional error message style
 .errorMessage {
   margin: 10px;
   border: 1px solid red;
@@ -182,54 +273,14 @@ $text-lighter: #999;
   background-color: #ead9d9;
   font-weight: 600;
 }
-// … inside .comment …
+
+// Optional edit area style
 .editArea {
   width: 100%;
   padding: 8px;
   resize: vertical;
   border: 1px solid #ccc;
   border-radius: 4px;
-  @include ms-font-m;  // match your other textareas
-  margin-bottom: 6px;  // spacing before the action buttons
-}
-.replyBox {
-  display: flex;
-  align-items: flex-start;
-  margin-top: 8px;
-
-  textarea {
-    flex: 1;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    resize: vertical;
-    @include ms-font-m;
-    margin-right: 8px;
-  }
-
-  button {
-    @include ms-font-s;
-    background: $brand-primary;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    padding: 6px 12px;
-    cursor: pointer;
-
-    &:hover {
-      background: darken($brand-primary, 5%);
-    }
-
-    &:disabled {
-      background: lighten($brand-primary, 20%);
-      cursor: default;
-    }
-  }
-}
-.comment {
-  .replies {
-    .replyBox {
-      margin-left: 40px;
-    }
-  }
+  @include ms-font-m;
+  margin-bottom: 6px;
 }

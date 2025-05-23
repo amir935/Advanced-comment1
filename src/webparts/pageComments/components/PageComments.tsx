@@ -3,10 +3,12 @@ import { useState, useEffect, useCallback } from "react";
 import SPHelper, { IComment, IUserInfo } from "../../../helpers/SPHelper";
 import { IPageCommentsProps } from "./IPageCommentsProps";
 import styles from "./PageComments.module.scss";
+import '@fortawesome/fontawesome-free/css/all.min.css';
+
 
 // Generate UUIDs for new comments/replies
-const guid = (): string =>
-  (crypto as any).randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+type Guid = string;
+const guid = (): Guid => (crypto as any).randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 
 const SORTS = ["Newest", "Oldest", "Popular"] as const;
 type SortKey = typeof SORTS[number];
@@ -18,7 +20,8 @@ interface IItemProps {
   isAdmin: boolean;
   helper: SPHelper;
   reload: () => Promise<void>;
-  datetimeFormat?: string;
+  parentAuthor?: string;
+  depth?: number;
 }
 
 const CommentItem: React.FC<IItemProps> = ({
@@ -28,6 +31,8 @@ const CommentItem: React.FC<IItemProps> = ({
   isAdmin,
   helper,
   reload,
+  parentAuthor,
+  depth = 0,
 }) => {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(comment.content);
@@ -35,15 +40,20 @@ const CommentItem: React.FC<IItemProps> = ({
   const [replyText, setReplyText] = useState("");
   const [showAll, setShowAll] = useState(false);
 
-  const canEdit = user.ID === comment.userid || isAdmin;
-  const canDelete = canEdit;
+  const PREVIEW_COUNT = 3;
+  const canDelete = user.ID === comment.userid || isAdmin;
 
   const upvote = async (): Promise<void> => {
+    // flip the flag
     comment.user_has_upvoted = !comment.user_has_upvoted;
+    // adjust count
     comment.upvote_count += comment.user_has_upvoted ? 1 : -1;
+    // send the new state to the backend
     await helper.vote(pageUrl, comment, user);
     await reload();
   };
+  
+
 
   const saveEdit = async (): Promise<void> => {
     comment.content = text;
@@ -56,6 +66,7 @@ const CommentItem: React.FC<IItemProps> = ({
   const doDelete = async (): Promise<void> => {
     if (confirm("Delete this comment and its replies?")) {
       await helper.delete(pageUrl, comment);
+      setEditing(false);
       await reload();
     }
   };
@@ -91,6 +102,9 @@ const CommentItem: React.FC<IItemProps> = ({
         <img className={styles.avatar} src={comment.profile_picture_url!} alt="" />
         <div className={styles.meta}>
           <span className={styles.author}>{comment.fullname}</span>
+          {depth >= 1 && parentAuthor && (
+            <span className={styles.replyTo}>&rarr; {parentAuthor}</span>
+          )}
           {comment.is_new && <span className={styles.newBadge}>New</span>}
         </div>
         <span className={styles.date}>
@@ -110,16 +124,32 @@ const CommentItem: React.FC<IItemProps> = ({
       )}
 
       <div className={styles.actions}>
-        <button onClick={upvote}>
-          {comment.upvote_count} 👍
-        </button>
-        <button onClick={editing ? saveEdit : () => setEditing(true)}>
-          {editing ? "Save" : "Edit"}
-        </button>
-        {canDelete && <button onClick={doDelete}>Delete</button>}
-        <button onClick={() => setShowReplyBox((s) => !s)}>
-          {showReplyBox ? "Cancel" : "Reply"}
-        </button>
+        {editing ? (
+          <div className={styles.action2}>
+            {canDelete && <button onClick={doDelete}>Delete</button>}
+            <button onClick={saveEdit}>Save</button>
+
+          </div>
+        ) : (
+          <>
+            <button onClick={() => setShowReplyBox((s) => !s)}>
+              {showReplyBox ? "Cancel" : "Reply"} .
+            </button>
+
+            <button className={styles.likeButton} onClick={upvote}>
+              <i
+                className={comment.user_has_upvoted ? 'fas fa-thumbs-up' : 'far fa-thumbs-up'}
+                aria-hidden="true"
+              />
+              <span className={styles.voteCount}>{comment.upvote_count}</span>
+            </button>
+
+
+            <button onClick={() => setEditing(true)}>Edit</button>
+
+
+          </>
+        )}
       </div>
 
       {showReplyBox && (
@@ -130,37 +160,42 @@ const CommentItem: React.FC<IItemProps> = ({
             onChange={(e) => setReplyText(e.target.value)}
             placeholder="Write your reply..."
           />
-          <button
-            onClick={sendReply}
-            disabled={!replyText.trim()}
-          >
+          <button onClick={sendReply} disabled={!replyText.trim()}>
             Send Reply
           </button>
         </div>
       )}
 
       {replies.length > 0 && (
-        <ul className={styles.replies}>
-          {(showAll ? replies : replies.slice(0, 2)).map((r) => (
-            <CommentItem
-              key={r.id}
-              comment={r}
-              pageUrl={pageUrl}
-              user={user}
-              isAdmin={isAdmin}
-              helper={helper}
-              reload={reload}
-            />
-          ))}
-          {replies.length > 2 && (
+        <>
+          <ul className={depth === 0 ? styles.replies : styles.childReplies}>
+            {(showAll ? replies : replies.slice(0, PREVIEW_COUNT)).map(
+              (r) => (
+                <CommentItem
+                  key={r.id}
+                  comment={r}
+                  pageUrl={pageUrl}
+                  user={user}
+                  isAdmin={isAdmin}
+                  helper={helper}
+                  reload={reload}
+                  parentAuthor={comment.fullname}
+                  depth={depth + 1}
+                />
+              )
+            )}
+          </ul>
+          {replies.length > PREVIEW_COUNT && (
             <button
               className={styles.toggleReplies}
               onClick={() => setShowAll((s) => !s)}
             >
-              {showAll ? "Hide replies" : `View all ${replies.length} replies`}
+              {showAll
+                ? "Hide replies"
+                : `View ${replies.length - PREVIEW_COUNT} more replies`}
             </button>
           )}
-        </ul>
+        </>
       )}
     </li>
   );
@@ -177,25 +212,15 @@ const PageComments: React.FC<IPageCommentsProps> = ({
   const [newText, setNewText] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("Newest");
 
-  // reload / nest replies
   const reload = useCallback(async (): Promise<void> => {
     if (!user) return;
     let all = await helper.fetchComments(pageUrl, user);
-
-    // sort
-    if (sortKey === "Oldest") {
-      all = all.slice().reverse();
-    } else if (sortKey === "Popular") {
-      all = all.slice().sort((a, b) => b.upvote_count - a.upvote_count);
-    }
-
-    // nest replies
+    if (sortKey === "Oldest") all = all.slice().reverse();
+    else if (sortKey === "Popular") all = all.slice().sort((a, b) => b.upvote_count - a.upvote_count);
     const map: Record<string, IComment> = {};
     all.forEach((c) => (map[c.id] = { ...c, replies: [] }));
     all.forEach((c) => {
-      if (c.parent && map[c.parent]) {
-        map[c.parent].replies!.push(map[c.id]);
-      }
+      if (c.parent && map[c.parent]) map[c.parent].replies!.push(map[c.id]);
     });
     setComments(Object.values(map).filter((c) => !c.parent));
   }, [helper, pageUrl, user, sortKey]);
@@ -226,7 +251,7 @@ const PageComments: React.FC<IPageCommentsProps> = ({
       is_new: true,
       pings: {},
       profile_picture_url: user.profile_picture_url,
-      replies: [],
+      replies: []
     };
     await helper.post(pageUrl, c);
     setNewText("");
@@ -235,7 +260,6 @@ const PageComments: React.FC<IPageCommentsProps> = ({
 
   return (
     <div className={styles.pageComments}>
-      {/* ──────────── Input Bar ──────────── */}
       <div className={styles.inputBar}>
         <img className={styles.avatar} src={user?.profile_picture_url} alt="" />
         <textarea
@@ -244,27 +268,17 @@ const PageComments: React.FC<IPageCommentsProps> = ({
           value={newText}
           onChange={(e) => setNewText(e.target.value)}
         />
-        <button className={styles.send} onClick={post}>
-          Send
-        </button>
+        <button className={styles.send} onClick={post}>Send</button>
       </div>
-
-      {/* ──────────── Nav Tabs ──────────── */}
       <div className={styles.nav}>
         {SORTS.map((key) => (
           <button
             key={key}
-            className={`${styles.navItem} ${
-              sortKey === key ? styles.active : ""
-            }`}
+            className={`${styles.navItem} ${sortKey === key ? styles.active : ""}`}
             onClick={() => setSortKey(key)}
-          >
-            {key}
-          </button>
+          >{key}</button>
         ))}
       </div>
-
-      {/* ──────────── Comments ──────────── */}
       <ul className={styles.commentList}>
         {comments.map((c) => (
           <CommentItem
@@ -275,7 +289,7 @@ const PageComments: React.FC<IPageCommentsProps> = ({
             isAdmin={isAdmin}
             helper={helper}
             reload={reload}
-            datetimeFormat={datetimeFormat}
+            depth={0}
           />
         ))}
       </ul>
