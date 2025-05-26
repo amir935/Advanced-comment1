@@ -7,6 +7,10 @@ import "@pnp/sp/fields";
 import "@pnp/sp/views";
 import "@pnp/sp/site-users/web";
 import "@pnp/sp/site-groups";
+import "@pnp/sp/folders";    // ← add this
+import "@pnp/sp/files";
+import "@pnp/sp/items";
+import "@pnp/sp/attachments";
 
 export interface IUserInfo {
   ID: number;
@@ -38,6 +42,7 @@ export interface IComment {
   pings: Record<string, string>;
   profile_picture_url?: string;
   replies?: IComment[];
+  attachments?: { name: string; url: string }[];
 }
 
 export default class SPHelper {
@@ -57,7 +62,7 @@ export default class SPHelper {
     // Disable versioning & attachments to reduce hidden columns
     await list.update({
       EnableVersioning: false,
-      EnableAttachments: false,
+      EnableAttachments: true,
     });
 
     // Helper: check if a field already exists
@@ -115,7 +120,7 @@ export default class SPHelper {
   /** Check if current user is site admin or in Comment Administrators group */
   public async isAdmin(): Promise<boolean> {
     const u = await this.sp.web.currentUser();
-    if (u.IsSiteAdmin) return true;
+    //if (u.IsSiteAdmin) return true;
     try {
       const members = await this.sp.web.siteGroups
         .getByName("Comment Administrators")
@@ -130,44 +135,59 @@ export default class SPHelper {
     }
   }
 
-  /** Fetch comments & likes for a given page URL */
-  public async fetchComments(
-    pageUrl: string,
-    user: IUserInfo
-  ): Promise<IComment[]> {
-    const res = await this.list.items
-      .select(
-        "Comments",
-        "FieldValuesAsText/Comments",
-        "Likes",
-        "FieldValuesAsText/Likes"
-      )
-      .filter(`PageURL eq '${pageUrl}'`)
-      .expand("FieldValuesAsText")();
 
-    if (res.length === 0) return [];
 
-    const comments = JSON.parse(
-      res[0].FieldValuesAsText.Comments || "[]"
-    ) as IComment[];
 
-    const likes = JSON.parse(
-      res[0].FieldValuesAsText.Likes || "[]"
-    ) as IVoteRecord[];
 
-    // Merge vote counts and user-specific state
-    likes.forEach((l) => {
-      const c = comments.find((x) => x.id === l.commentID);
-      if (c) {
-        c.upvote_count = l.userVote.length;
-        c.user_has_upvoted = l.userVote.some(
-          (v) => v.userid === user.ID
-        );
-      }
-    });
+public async fetchComments(
+  pageUrl: string,
+  user: IUserInfo
+): Promise<IComment[]> {
+  // 1) Load the single “Page Comments” list item for this page
+  const items = await this.list.items
+    .select("ID", "FieldValuesAsText/Comments", "FieldValuesAsText/Likes")
+    .filter(`PageURL eq '${pageUrl}'`)
+    .expand("FieldValuesAsText")();
 
-    return comments;
+  if (items.length === 0) {
+    return [];
   }
+  const item = items[0];
+  const itemId = item.ID;
+
+  // 2) Parse the stored JSON blobs
+  const comments = JSON.parse(
+    item.FieldValuesAsText.Comments || "[]"
+  ) as IComment[];
+  const likes = JSON.parse(
+    item.FieldValuesAsText.Likes || "[]"
+  ) as IVoteRecord[];
+
+  // 3) Fetch all attachments on that list item
+  const files = await this.list.items.getById(itemId).attachmentFiles();
+
+  // 4) For each comment, pick out its own attachments by matching the prefix
+  comments.forEach(c => {
+    const myFiles = files.filter(f => f.FileName.startsWith(`${c.id}_`));
+    c.attachments = myFiles.map(f => ({
+      name: f.FileName.replace(`${c.id}_`, ""),
+      url: window.location.origin + (f as any).ServerRelativeUrl
+    }));
+  });
+
+  // 5) Merge in vote counts + user-specific upvoted flag
+  likes.forEach(record => {
+    const c = comments.find(x => x.id === record.commentID);
+    if (c) {
+      c.upvote_count = record.userVote.length;
+      c.user_has_upvoted = record.userVote.some(v => v.userid === user.ID);
+    }
+  });
+
+  return comments;
+}
+
+
 
   /** Internal: add or update the single list item storing comments */
   private async saveComments(
@@ -221,6 +241,42 @@ export default class SPHelper {
       all.filter((c) => !toRemove.has(c.id))
     );
   }
+
+  /** Upload one file into the “CommentUploads” library, under a folder for this page+comment */
+
+
+
+public async uploadCommentFile(
+  pageUrl: string,
+  commentId: string,
+  file: File
+): Promise<{ name: string; url: string }> {
+  // 1) Find the Page Comments list‐item
+  const items = await this.list.items.filter(`PageURL eq '${pageUrl}'`)();
+  if (!items.length) {
+    throw new Error("No comments item found for this page");
+  }
+  const itemId = items[0].ID;
+
+  // 2) Upload, with the commentId prefix
+  const attachmentName = `${commentId}_${file.name}`;
+  const addRes = await this.list
+    .items.getById(itemId)
+    .attachmentFiles.add(attachmentName, file);
+
+  // 3) Build the public URL
+  const serverRel = (addRes.data as any).ServerRelativeUrl;
+  return {
+    name: file.name,
+    url: window.location.origin + serverRel
+  };
+}
+
+
+
+
+
+
 
 /** Always add a vote (never remove it) */
 /** Always add a vote, never remove it */

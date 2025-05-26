@@ -92,7 +92,6 @@ $text-lighter: #999;
   .comment {
     padding: 12px 0;
     border-bottom: 1px solid #eee;
-    
 
     .commentHeader {
       display: flex;
@@ -126,7 +125,7 @@ $text-lighter: #999;
 
         .mentionInline {
           font-weight: bold;
-          color: $brand-secondary;   // or whatever you like
+          color: $brand-secondary; // or whatever you like
           margin-right: 0.25rem;
         }
 
@@ -155,16 +154,15 @@ $text-lighter: #999;
     .actions {
       display: flex;
       align-items: center;
-      
+
       @include ms-font-s;
       color: $brand-secondary;
       margin-left: 35px;
 
-      
-      .action2{
-        margin-left: auto;    // ← push to the right edge of .actions
+      .action2 {
+        margin-left: auto; // ← push to the right edge of .actions
         display: flex;
-        gap: 8px;             // space between Delete & Save
+        gap: 8px; // space between Delete & Save
         padding-top: 8px;
       }
 
@@ -187,21 +185,21 @@ $text-lighter: #999;
       cursor: pointer;
       padding: 0 6px;
       @include ms-font-s;
-    
+
       i {
-        font-size: 1.1em;  // adjust size as needed
+        font-size: 1.1em; // adjust size as needed
       }
     }
-    
+
     .voteCount {
       margin-left: 4px;
       @include ms-font-s;
     }
-    
+
     // ────────── Threaded replies ──────────
     .replies {
       list-style: none;
-      margin-left: 2rem;         // indent replies
+      margin-left: 2rem; // indent replies
       padding-left: 1rem;
       border-left: 2px solid #ddd;
       margin-top: 8px;
@@ -213,7 +211,6 @@ $text-lighter: #999;
       border-left: none;
       margin-top: 8px; // keep vertical spacing if desired
     }
-
 
     .toggleReplies {
       background: none;
@@ -283,4 +280,65 @@ $text-lighter: #999;
   border-radius: 4px;
   @include ms-font-m;
   margin-bottom: 6px;
+}
+.attachments {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+.attachment {
+  max-width: 120px;
+  border-radius: 4px;
+}
+.inputWrapper {
+  position: relative;
+  flex: 1;
+
+  .input {
+    width: 100%;
+    padding: 8px;
+    padding-right: 36px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    resize: vertical;
+    font-size: 14px;
+  }
+
+  .attachmentIcon {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+    font-size: 18px;
+    color: #999;
+    cursor: pointer;
+
+    &:hover {
+      color: #666;
+    }
+  }
+}
+
+.filePreviews {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: absolute;
+  bottom: 100%;  // sit just above the textarea
+  left: 0;
+}
+
+.previewImage {
+  width: 30px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+.previewSendIcon {
+  font-size: 18px;
+  color: $brand-primary;
+  cursor: pointer;
+  margin-left: 4px;
+
 }
